@@ -60,6 +60,7 @@ public class PageCoordinator : MonoBehaviour
     }
     public void QuitApplication()
     {
+        PlayerPrefs.DeleteAll();
         Application.Quit();
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;

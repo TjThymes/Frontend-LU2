@@ -10,8 +10,11 @@ public class EnvironmentMaker : MonoBehaviour
 
     public TMP_InputField environmentNameInput;
     public TMP_InputField environmentDescriptionInput;
+    public TMP_InputField widthInput;  // 🆕
+    public TMP_InputField heightInput; // 🆕
     public TMP_Text feedbackText;
     public ApiClient apiClient; // ✅ Use ApiClient service
+    public EnvironmentLoader EnvironmentLoader;
 
     private void Start()
     {
@@ -45,19 +48,21 @@ public class EnvironmentMaker : MonoBehaviour
         var newEnvironment = new EnvironmentData
         {
             Name = environmentNameInput.text,
-            Description = string.IsNullOrWhiteSpace(environmentDescriptionInput.text) ? null : environmentDescriptionInput.text
+            Description = string.IsNullOrWhiteSpace(environmentDescriptionInput.text) ? null : environmentDescriptionInput.text,
+            Width = int.Parse(widthInput.text),  // 🆕
+            Height = int.Parse(heightInput.text) // 🆕
         };
 
         try
         {
             await apiClient.PostAsync<EnvironmentData, object>(CreateEnvironmentEndpoint, newEnvironment);
             feedbackText.text = "✅ Environment created successfully!";
+            EnvironmentLoader.Reload();
             Debug.Log("✅ Environment Created!");
+
         }
         catch (Exception ex)
         {
-            feedbackText.text = "❌ Error creating environment!";
-            Debug.LogError($"❌ API Error: {ex.Message}");
         }
     }
 }
@@ -67,4 +72,6 @@ public class EnvironmentData
 {
     public string Name;
     public string Description;
+    public int Width;
+    public int Height;
 }

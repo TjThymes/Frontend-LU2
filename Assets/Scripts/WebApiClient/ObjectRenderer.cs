@@ -14,6 +14,5 @@ public class ObjectRenderer : MonoBehaviour
     void Update()
     {
         string EnvID = PlayerPrefs.GetString("SelectedEnvironmentID", "");
-        EnvIDText.text = EnvID;
     }
 }

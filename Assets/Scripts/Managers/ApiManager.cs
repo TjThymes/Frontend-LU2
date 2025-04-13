@@ -1,10 +1,14 @@
 ﻿using UnityEngine;
 using TMPro;
 using System.Threading.Tasks;
+using WebApiClient.ApiClient;
+using Assets.Scripts.Models;
+using UnityEngine.SceneManagement;
+using UnityEngine.Networking;
 
 public class ApiManager : MonoBehaviour
 {
-    public TMP_InputField emailInput;
+    public TMP_InputField NameInput;
     public TMP_InputField passwordInput;
     public TMP_InputField usernameInputReg;
     public TMP_InputField emailInputReg;
@@ -17,7 +21,7 @@ public class ApiManager : MonoBehaviour
 
     private void Start()
     {
-        apiClient.Initialize("https://avansict2232402.azurewebsites.net/api");
+        apiClient.Initialize("https://avansict2232490.azurewebsites.net/api/");
     }
 
     public async void Register()
@@ -51,7 +55,7 @@ public class ApiManager : MonoBehaviour
 
     public async void Login()
     {
-        if (string.IsNullOrWhiteSpace(emailInput.text) || string.IsNullOrWhiteSpace(passwordInput.text))
+        if (string.IsNullOrWhiteSpace(NameInput.text) || string.IsNullOrWhiteSpace(passwordInput.text))
         {
             feedbackText.text = "❌ Please enter both email and password!";
             return;
@@ -59,7 +63,7 @@ public class ApiManager : MonoBehaviour
 
         var loginData = new LoginModel
         {
-            UserName = emailInput.text,
+            UserName = NameInput.text,
             Password = passwordInput.text
         };
 
@@ -68,13 +72,22 @@ public class ApiManager : MonoBehaviour
             var response = await apiClient.PostAsync<LoginModel, AuthResponse>("auth/login", loginData);
 
             PlayerPrefs.SetString("UserToken", response.accessToken);
+
+            // ✅ Decode userId from the token:
+            string userId = JwtDecoder.GetUserIdFromToken(response.accessToken);
+            PlayerPrefs.SetString("PlayerID", userId);
+
             PlayerPrefs.Save();
+
+            Debug.Log($"✅ Token Saved: {response.accessToken} ✅ UserId Decoded: {userId}");
+
 
             apiClient.SetAccessToken(response.accessToken);
 
             Loginscreen.SetActive(false);
             Environments.SetActive(true);
             feedbackText.text = "✅ Login successful!";
+            Debug.Log(PlayerPrefs.GetString("UserToken"));
         }
         catch (System.Exception ex)
         {
@@ -95,7 +108,9 @@ public class ApiManager : MonoBehaviour
 
         try
         {
+            
             var response = await apiClient.GetAsync<UsernameAvailabilityResponse>($"auth/check-username?username={username}");
+
             Regisertext.text = response.available
                 ? "✅ Username is available!"
                 : "❌ Username is already taken!";
@@ -108,7 +123,8 @@ public class ApiManager : MonoBehaviour
     }
 }
 
-[System.Serializable]
+
+    [System.Serializable]
 public class UsernameAvailabilityResponse
 {
     public bool available;

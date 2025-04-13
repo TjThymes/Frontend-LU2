@@ -4,6 +4,8 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+
 
 namespace WebApiClient.ApiClient
 {
@@ -29,7 +31,7 @@ namespace WebApiClient.ApiClient
 
         public async Task<T> GetAsync<T>(string endpoint)
         {
-            var url = $"{_baseUrl}/{endpoint}";
+            var url = $"{_baseUrl}{endpoint}";
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
                 if (!string.IsNullOrEmpty(_accessToken))
@@ -50,41 +52,40 @@ namespace WebApiClient.ApiClient
                     return default;
                 }
 
-                return JsonUtility.FromJson<T>(request.downloadHandler.text);
+                return JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
             }
         }
 
-        public async Task<TResponse> PostAsync<TRequest, TResponse>(string endpoint, TRequest data)
+        public async Task<TResult> PostAsync<TRequest, TResult>(string endpoint, TRequest data)
         {
-            var url = $"{_baseUrl}/{endpoint}";
-            var jsonData = JsonUtility.ToJson(data);
-            var jsonBytes = Encoding.UTF8.GetBytes(jsonData);
+            var request = new UnityWebRequest(_baseUrl + endpoint, "POST");
 
-            using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
+            var jsonData = JsonConvert.SerializeObject(data); // ✅ Hier aangepast!
+            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
+
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+
+            if (!string.IsNullOrEmpty(_accessToken))
+                request.SetRequestHeader("Authorization", "Bearer " + _accessToken);
+
+            await request.SendWebRequest();
+
+            if (request.result != UnityWebRequest.Result.Success)
             {
-                request.uploadHandler = new UploadHandlerRaw(jsonBytes);
-                request.downloadHandler = new DownloadHandlerBuffer();
-                request.SetRequestHeader("Content-Type", "application/json");
-
-                if (!string.IsNullOrEmpty(_accessToken))
-                {
-                    request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
-                }
-
-                var operation = request.SendWebRequest();
-
-                while (!operation.isDone)
-                    await Task.Yield();
-
-                if (request.result != UnityWebRequest.Result.Success)
-                {
-                    Debug.LogError($"POST failed: {request.error}");
-                    return default;
-                }
-
-                return JsonUtility.FromJson<TResponse>(request.downloadHandler.text);
+                throw new Exception(request.error);
             }
+
+            if (string.IsNullOrWhiteSpace(request.downloadHandler.text))
+            {
+                return default(TResult)!;
+            }
+
+            return JsonConvert.DeserializeObject<TResult>(request.downloadHandler.text);
         }
+
+
         public async Task DeleteAsync(string endpoint)
         {
             using (UnityWebRequest request = UnityWebRequest.Delete(_baseUrl + endpoint))

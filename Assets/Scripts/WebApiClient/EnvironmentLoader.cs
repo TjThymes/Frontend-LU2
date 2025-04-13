@@ -5,6 +5,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 using WebApiClient.ApiClient;
+using Assets.Scripts.Models;
 
 public class EnvironmentLoader : MonoBehaviour
 {
@@ -19,13 +20,18 @@ public class EnvironmentLoader : MonoBehaviour
     {
         await LoadEnvironments();
     }
-
+    public async void Reload()
+    {
+        feedbackText.text = "Reloading environments...";
+        LoadEnvironments();
+    }
     public async Task LoadEnvironments()
     {
         string token = PlayerPrefs.GetString("UserToken", "");
+
         if (string.IsNullOrEmpty(token))
         {
-            Debug.LogError("❌ User token missing! Login first.");
+            Debug.LogError("❌ Token or UserId missing!");
             feedbackText.text = "❌ Please log in first.";
             return;
         }
@@ -34,50 +40,52 @@ public class EnvironmentLoader : MonoBehaviour
 
         try
         {
-            var environmentIds = await apiClient.GetAsync<string[]>($"{GetEnvironmentIdsEndpoint}");
+            var userId = PlayerPrefs.GetString("UserId", "");
+            var environments = await apiClient.GetAsync<EnvironmentResponse[]>($"{GetEnvironmentIdsEndpoint}?userId={userId}");
 
-            if (environmentIds == null || environmentIds.Length == 0)
+            if (environments == null || environments.Length == 0)
             {
                 Debug.LogWarning("⚠️ No environments found for this user.");
                 feedbackText.text = "No environments available.";
+                PopulateEnvironmentButtons(environments);
                 return;
             }
 
-            PopulateEnvironmentButtons(environmentIds);
-            feedbackText.text = $"✅ {environmentIds.Length} environments loaded!";
+            PopulateEnvironmentButtons(environments);
+            feedbackText.text = $"✅ {environments.Length} environments loaded!";
         }
         catch (Exception ex)
         {
-            Debug.LogError($"❌ Failed to load environments: {ex.Message}");
-            feedbackText.text = "❌ Failed to load environments!";
         }
     }
 
-    private void PopulateEnvironmentButtons(string[] environmentIds)
+
+    private void PopulateEnvironmentButtons(EnvironmentResponse[] environments)
     {
         foreach (Transform child in environmentListContainer)
         {
             Destroy(child.gameObject); // ✅ Clear old buttons
         }
 
-        float yOffset = 0f;
-        float spacing = 50f;
+        float yOffset = 1f;
+        float spacing = 10f;
 
-        foreach (var envId in environmentIds)
+        foreach (var env in environments)
         {
             GameObject button = Instantiate(environmentButtonPrefab, environmentListContainer);
             var text = button.GetComponentInChildren<TMP_Text>();
             if (text != null)
-                text.text = $"Environment ID: {envId}";
+                text.text = env.name; // ✅ SHOW THE NAME!
 
             var rect = button.GetComponent<RectTransform>();
             rect.anchoredPosition = new Vector2(-200f, -yOffset);
 
             yOffset += spacing;
 
-            button.GetComponent<Button>().onClick.AddListener(() => OpenEnvironment(envId));
+            button.GetComponent<Button>().onClick.AddListener(() => OpenEnvironment(env.id));
         }
     }
+
 
     private void OpenEnvironment(string environmentId)
     {
